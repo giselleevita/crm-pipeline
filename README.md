@@ -1,54 +1,44 @@
 # crm-pipeline
 
-> HubSpot CRM → BigQuery → Metabase data ingestion pipeline
-
-Automates the ingestion of HubSpot CRM data (contacts, deals, companies) into BigQuery and exposes it via Metabase dashboards. Built as a portfolio project mirroring real-world B2B SaaS data engineering workflows.
+HubSpot CRM → BigQuery → Metabase data ingestion pipeline. Automates contact, deal, and activity syncs with dbt transformations and GitHub Actions scheduling.
 
 ## Architecture
+
 ```
-HubSpot REST API
-      │
-      ▼
-hubspot_client.py  (paginated API pull)
-      │
-      ▼
-transform.py       (raw JSON → structured dicts)
-      │
-      ▼
-bigquery_loader.py (schema-enforced BQ load)
-      │
-      ▼
-BigQuery (crm_raw dataset)
-      │
-      ├── dbt model: deal_stage_summary
-      │
-      ▼
-Metabase (dashboard via Docker)
+HubSpot API
+    ↓ (Python extractor)
+BigQuery (raw layer)
+    ↓ (dbt models)
+BigQuery (transformed layer)
+    ↓
+Metabase (dashboards)
 ```
+
+## Features
+
+- Full + incremental sync modes (contacts, deals, companies, activities)
+- dbt models for clean sales funnel and pipeline metrics
+- GitHub Actions workflow for scheduled daily runs
+- Error alerting via Slack webhook on pipeline failure
+- Idempotent loads — safe to re-run without duplicates
 
 ## Setup
 
 ```bash
-git clone https://github.com/giselleevita/crm-pipeline
-cd crm-pipeline
 pip install -r requirements.txt
-cp .env.example .env   # fill in your keys
-python src/pipeline.py
+cp .env.example .env
+# Fill in HUBSPOT_API_KEY, BQ_PROJECT_ID, BQ_DATASET
+python pipeline/extract.py
+dbt run
 ```
 
-## Metabase (local)
-```bash
-docker run -d -p 3000:3000 --name metabase metabase/metabase
-# open http://localhost:3000 → connect BigQuery
-```
+## Requirements
 
-## Tests
-```bash
-pytest tests/ -v
-```
+- Python 3.11+
+- Google Cloud project with BigQuery enabled
+- HubSpot private app token
+- dbt-bigquery
 
-## Data Dictionary
-See [data_dictionary.md](./data_dictionary.md)
+## License
 
-## Tech Stack
-Python · HubSpot API · Google BigQuery · Metabase · dbt · Docker · GitHub Actions
+Not licensed for reuse.
