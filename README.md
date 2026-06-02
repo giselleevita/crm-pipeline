@@ -4,23 +4,30 @@
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 ![License](https://img.shields.io/badge/license-proprietary-lightgrey)
 
-> HubSpot CRM → BigQuery → Metabase data ingestion pipeline.
+> Secure HubSpot CRM → BigQuery → Metabase data ingestion pipeline — built with credential isolation, idempotent loads, least-privilege service accounts, and audit-ready dbt transformations.
 
-Automates contact, deal, company, and activity syncs from HubSpot into BigQuery with dbt transformations and scheduled GitHub Actions runs.
+Automates contact, deal, company, and activity syncs from HubSpot into BigQuery. Credentials are scoped to minimum required permissions; all pipeline runs are logged and alertable.
 
 ---
 
 ## Architecture
 
 ```
-HubSpot API
+HubSpot API  (private app token, scoped read-only)
     ↓  Python extractor (full + incremental)
-BigQuery — raw layer
+BigQuery — raw layer  (service account: BQ Data Editor only)
     ↓  dbt models
 BigQuery — transformed layer
     ↓
-Metabase — dashboards
+Metabase — dashboards  (service account: BQ Data Viewer only)
 ```
+
+**Security controls built in:**
+- HubSpot private app token (not OAuth, no user delegation)
+- BigQuery service account with least-privilege IAM roles per layer
+- No credentials in code — all via environment variables / Secret Manager
+- Slack alerting on pipeline failure for operational visibility
+- Idempotent loads — safe to re-run without data duplication
 
 ---
 
@@ -43,7 +50,7 @@ crm-pipeline/
 ├── tests/                  # pytest suite
 ├── .github/workflows/      # Scheduled CI + pipeline runs
 ├── data_dictionary.md      # Field definitions for all synced objects
-├── .env.example            # Required environment variables
+├── .env.example            # Required environment variables (no secrets)
 └── requirements.txt
 ```
 
@@ -76,7 +83,7 @@ git clone https://github.com/giselleevita/crm-pipeline
 cd crm-pipeline
 pip install -r requirements.txt
 cp .env.example .env
-# Fill in HUBSPOT_API_KEY, BQ_PROJECT_ID, BQ_DATASET
+# Fill in HUBSPOT_API_KEY, BQ_PROJECT_ID, BQ_DATASET, GCP_SERVICE_ACCOUNT_KEY
 
 # Run extractor
 python src/extract.py
@@ -90,14 +97,24 @@ pytest tests/ -v
 
 ---
 
+## Credential Setup
+
+| Secret | Where to set | Minimum scope |
+|---|---|---|
+| `HUBSPOT_API_KEY` | GitHub Actions secret / `.env` | CRM read-only |
+| `GCP_SERVICE_ACCOUNT_KEY` | GitHub Actions secret / `.env` | `roles/bigquery.dataEditor` on dataset only |
+| `SLACK_WEBHOOK_URL` | GitHub Actions secret / `.env` | Incoming webhook only |
+
+Never commit credentials. Use `.env.example` as a template.
+
+---
+
 ## Requirements
 
 - Python 3.11+
 - Google Cloud project with BigQuery enabled and a service account key
 - HubSpot private app token
 - `dbt-bigquery`
-
-See `.env.example` for all required environment variables.
 
 ---
 
