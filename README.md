@@ -8,6 +8,8 @@
 
 Automates contact, deal, company, and activity syncs from HubSpot into BigQuery. Credentials are scoped to minimum required permissions; all pipeline runs are logged and alertable.
 
+For the hiring-focused project narrative, see [docs/CASE_STUDY.md](docs/CASE_STUDY.md).
+
 ---
 
 ## Architecture
