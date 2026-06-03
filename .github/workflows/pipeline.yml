@@ -1,6 +1,10 @@
 name: Run CRM Pipeline
 
 on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
   schedule:
     - cron: '0 6 * * *'
   workflow_dispatch:
@@ -20,4 +24,15 @@ jobs:
           HUBSPOT_API_KEY: ${{ secrets.HUBSPOT_API_KEY }}
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
           GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS_JSON }}
-        run: python src/pipeline.py
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "Live CRM sync skipped on pull_request."
+            exit 0
+          fi
+
+          if [ -z "$HUBSPOT_API_KEY" ] || [ -z "$GCP_PROJECT_ID" ] || [ -z "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
+            echo "Live CRM sync skipped because one or more required secrets are not configured."
+            exit 0
+          fi
+
+          python src/pipeline.py
