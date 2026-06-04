@@ -12,16 +12,28 @@ For the hiring-focused project narrative, see [docs/CASE_STUDY.md](docs/CASE_STU
 
 ---
 
+## Reviewer Quick Start
+
+For a fast technical review:
+
+1. Run `pytest tests/ -v` to verify extractor and transformation behavior.
+2. Read [`data_dictionary.md`](./data_dictionary.md) to understand the synced CRM objects and warehouse-facing fields.
+3. Review the architecture below and GitHub Actions workflow to see how live syncs are separated from offline CI.
+4. Use `.env.example` as the secret contract; no credentials are committed.
+
+This project is meant to show client-style data delivery: source ingestion, idempotent loading, warehouse modeling, least-privilege credentials, and operational alerting.
+
+---
+
 ## Architecture
 
-```
-HubSpot API  (private app token, scoped read-only)
-    ↓  Python extractor (full + incremental)
-BigQuery — raw layer  (service account: BQ Data Editor only)
-    ↓  dbt models
-BigQuery — transformed layer
-    ↓
-Metabase — dashboards  (service account: BQ Data Viewer only)
+```mermaid
+flowchart TD
+    HubSpot[HubSpot API<br/>read-only private app token] --> Extractor[Python extractor<br/>full + incremental sync]
+    Extractor --> Raw[BigQuery raw layer<br/>data editor scoped to dataset]
+    Raw --> DBT[dbt staging + marts]
+    DBT --> BI[Metabase dashboards<br/>viewer-only access]
+    Extractor --> Logs[Run logs + Slack alerting]
 ```
 
 **Security controls built in:**
