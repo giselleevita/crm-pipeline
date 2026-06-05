@@ -6,7 +6,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 BASE_URL = "https://api.hubapi.com/crm/v3/objects"
-HEADERS = {"Authorization": f"Bearer {os.getenv('HUBSPOT_API_KEY')}"}
+
+
+def _auth_headers() -> dict[str, str]:
+    api_key = os.getenv("HUBSPOT_API_KEY")
+    if not api_key:
+        raise RuntimeError("HUBSPOT_API_KEY is required to call the HubSpot API.")
+    return {"Authorization": f"Bearer {api_key}"}
 
 
 def _fetch_all(object_type: str, properties: list[str]) -> list[dict]:
@@ -17,7 +23,7 @@ def _fetch_all(object_type: str, properties: list[str]) -> list[dict]:
         params = {"limit": 100, "properties": ",".join(properties)}
         if after:
             params["after"] = after
-        resp = requests.get(url, headers=HEADERS, params=params, timeout=30)
+        resp = requests.get(url, headers=_auth_headers(), params=params, timeout=30)
         resp.raise_for_status()
         data = resp.json()
         records.extend(data.get("results", []))

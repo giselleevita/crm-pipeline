@@ -16,8 +16,16 @@ def test_contact_keys():
 def test_deal_keys():
     result = transform_deals([SAMPLE_DEAL])
     assert result[0]["stage"] == "contractsent"
-    assert result[0]["amount"] == "5000"
+    assert result[0]["amount"] == 5000.0
 
 def test_company_keys():
     result = transform_companies([SAMPLE_COMPANY])
     assert result[0]["domain"] == "acme.com"
+    assert result[0]["employees"] == 50
+
+def test_invalid_numeric_values_become_null():
+    deal = {"id": "4", "properties": {"amount": "not-a-number"}}
+    company = {"id": "5", "properties": {"numberofemployees": "unknown"}}
+
+    assert transform_deals([deal])[0]["amount"] is None
+    assert transform_companies([company])[0]["employees"] is None

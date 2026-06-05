@@ -2,46 +2,56 @@
 
 ## Problem
 
-Sales and customer-success teams often need trustworthy CRM reporting without manually exporting spreadsheets from HubSpot. The goal of this project is to show a practical, client-style data pipeline that ingests CRM records, models them into reporting tables, and keeps the operational path auditable.
+Sales and customer-success teams often need CRM reporting without manually exporting spreadsheets from HubSpot. A first useful step is to move core CRM records into a warehouse-friendly shape so reporting logic can be reviewed, tested, and extended.
 
 ## Solution
 
-The pipeline extracts contacts, deals, companies, and activities from HubSpot, loads them into BigQuery, applies dbt transformations, and makes the modeled data available for Metabase dashboards.
+This project implements a compact HubSpot-to-BigQuery ingestion path:
 
-The design separates raw ingestion from transformed reporting layers so the system can be re-run safely, debugged when source data changes, and extended without rewriting the full pipeline.
+- extract contacts, deals, and companies from the HubSpot CRM API
+- transform source records into raw warehouse fields
+- load full-refresh BigQuery tables
+- provide a sample dbt model for deal-stage reporting
+- run transformation tests in CI
+- optionally run live syncs on a GitHub Actions schedule when secrets are configured
 
 ## Architecture
 
-- Python extractor for HubSpot API ingestion.
+- Python extractor for HubSpot API pagination.
+- Transform layer for contacts, deals, and companies.
 - BigQuery raw dataset for source-aligned data.
-- dbt staging and mart models for reporting-ready tables.
-- GitHub Actions for scheduled runs and test automation.
-- Slack alerting for failed pipeline runs.
+- Sample dbt SQL model for deal-stage aggregation.
+- GitHub Actions for tests, scheduled runs, and manual dispatch.
 
 ## Engineering Choices
 
-- Idempotent loads reduce duplicate records and make retries safer.
+- The current loader uses full refreshes (`WRITE_TRUNCATE`) because that is simple to reason about for a small demo dataset.
 - Secrets are passed through environment variables or CI secrets, not source code.
-- Service accounts are scoped separately for loading and dashboard access.
-- dbt models document transformation logic in a reviewable format.
+- Transform tests validate the shape of warehouse records before live loading.
+- The workflow skips live syncs when credentials are not configured, so pull requests can run safely without external systems.
 
 ## Security And Reliability Controls
 
-- Read-only HubSpot token scope.
-- Least-privilege BigQuery service account permissions.
-- No committed credentials.
-- Pipeline failure alerting.
-- Tests for extractor, loader, and transformation behavior.
+- No committed HubSpot or Google Cloud credentials.
+- HubSpot token is supplied at runtime.
+- BigQuery project and dataset are supplied at runtime.
+- Tests run without live vendor credentials.
+- Live pipeline execution is skipped in CI if required secrets are missing.
+
+## Current Limitations
+
+This is not yet a production-grade CRM data platform. It does not currently implement incremental cursors, BigQuery `MERGE` upserts, activity sync, run metadata, Slack alerting, Terraform-managed IAM, or comprehensive extractor/loader mocks.
 
 ## What This Shows
 
-This is the strongest general software-delivery project in the portfolio because it connects engineering work to a normal business workflow: data ingestion, warehouse modeling, operational scheduling, and reporting.
-
-It is useful in interviews because it demonstrates client-facing thinking, not only technical experimentation.
+This repo is useful as a data-engineering portfolio support project when presented honestly: it shows API ingestion, transformation discipline, BigQuery loading, and CI separation between offline tests and live syncs.
 
 ## Next Improvements
 
-- Add Terraform for BigQuery datasets and IAM bindings.
-- Add data quality checks with dbt tests or Great Expectations.
-- Add sample dashboard screenshots using synthetic data.
-- Add replayable fixture data for fully offline demos.
+- Add config validation and fail-fast errors for missing environment variables.
+- Add mocked HubSpot pagination tests.
+- Add mocked BigQuery loader tests.
+- Replace full-refresh loads with staging tables and `MERGE`.
+- Store incremental cursors per object type.
+- Add dbt project configuration, dbt tests, and sample dashboard screenshots.
+- Add Slack or email alerting for failed scheduled runs.

@@ -1,51 +1,56 @@
 """Load structured records into BigQuery."""
 import os
-from google.cloud import bigquery
 from dotenv import load_dotenv
 
 load_dotenv()
 
-PROJECT = os.getenv("GCP_PROJECT_ID")
-DATASET = os.getenv("GCP_DATASET_ID", "crm_raw")
-
-SCHEMAS = {
+SCHEMA_FIELDS = {
     "contacts": [
-        bigquery.SchemaField("id", "STRING"),
-        bigquery.SchemaField("firstname", "STRING"),
-        bigquery.SchemaField("lastname", "STRING"),
-        bigquery.SchemaField("email", "STRING"),
-        bigquery.SchemaField("lead_status", "STRING"),
-        bigquery.SchemaField("created_at", "TIMESTAMP"),
-        bigquery.SchemaField("ingested_at", "TIMESTAMP"),
+        ("id", "STRING"),
+        ("firstname", "STRING"),
+        ("lastname", "STRING"),
+        ("email", "STRING"),
+        ("lead_status", "STRING"),
+        ("created_at", "TIMESTAMP"),
+        ("ingested_at", "TIMESTAMP"),
     ],
     "deals": [
-        bigquery.SchemaField("id", "STRING"),
-        bigquery.SchemaField("deal_name", "STRING"),
-        bigquery.SchemaField("amount", "FLOAT"),
-        bigquery.SchemaField("stage", "STRING"),
-        bigquery.SchemaField("pipeline", "STRING"),
-        bigquery.SchemaField("close_date", "TIMESTAMP"),
-        bigquery.SchemaField("created_at", "TIMESTAMP"),
-        bigquery.SchemaField("ingested_at", "TIMESTAMP"),
+        ("id", "STRING"),
+        ("deal_name", "STRING"),
+        ("amount", "FLOAT"),
+        ("stage", "STRING"),
+        ("pipeline", "STRING"),
+        ("close_date", "TIMESTAMP"),
+        ("created_at", "TIMESTAMP"),
+        ("ingested_at", "TIMESTAMP"),
     ],
     "companies": [
-        bigquery.SchemaField("id", "STRING"),
-        bigquery.SchemaField("name", "STRING"),
-        bigquery.SchemaField("domain", "STRING"),
-        bigquery.SchemaField("industry", "STRING"),
-        bigquery.SchemaField("country", "STRING"),
-        bigquery.SchemaField("employees", "INTEGER"),
-        bigquery.SchemaField("created_at", "TIMESTAMP"),
-        bigquery.SchemaField("ingested_at", "TIMESTAMP"),
+        ("id", "STRING"),
+        ("name", "STRING"),
+        ("domain", "STRING"),
+        ("industry", "STRING"),
+        ("country", "STRING"),
+        ("employees", "INTEGER"),
+        ("created_at", "TIMESTAMP"),
+        ("ingested_at", "TIMESTAMP"),
     ],
 }
 
 
 def load(table_name: str, rows: list[dict]) -> None:
-    client = bigquery.Client(project=PROJECT)
-    table_id = f"{PROJECT}.{DATASET}.{table_name}"
+    project = os.getenv("GCP_PROJECT_ID")
+    dataset = os.getenv("GCP_DATASET_ID", "crm_raw")
+    if not project:
+        raise RuntimeError("GCP_PROJECT_ID is required to load rows into BigQuery.")
+    if table_name not in SCHEMA_FIELDS:
+        raise ValueError(f"Unsupported BigQuery table: {table_name}")
+
+    from google.cloud import bigquery
+
+    client = bigquery.Client(project=project)
+    table_id = f"{project}.{dataset}.{table_name}"
     job_config = bigquery.LoadJobConfig(
-        schema=SCHEMAS[table_name],
+        schema=[bigquery.SchemaField(name, field_type) for name, field_type in SCHEMA_FIELDS[table_name]],
         write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,
     )
     job = client.load_table_from_json(rows, table_id, job_config=job_config)
