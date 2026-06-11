@@ -42,9 +42,9 @@ This project implements a compact HubSpot-to-BigQuery ingestion path:
 
 This is not yet a production-grade CRM data platform. It does not currently implement incremental cursors, BigQuery `MERGE` upserts, activity sync, run metadata, Slack alerting, Terraform-managed IAM, or comprehensive extractor/loader mocks.
 
-## What This Shows
+## Operational Value
 
-This repo is useful as a data-engineering portfolio support project when presented honestly: it shows API ingestion, transformation discipline, BigQuery loading, and CI separation between offline tests and live syncs.
+The pipeline provides a reviewable starting point for moving CRM records into an analytical warehouse. Its main value is the explicit separation between extraction, transformation, loading, offline validation, and credential-dependent live execution.
 
 ## Next Improvements
 

@@ -18,6 +18,10 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install -r requirements.txt
+      - name: Audit dependencies
+        run: |
+          pip install pip-audit
+          pip-audit -r requirements.txt --progress-spinner off
       - run: pytest tests/ -v
       - name: Run pipeline
         env:
