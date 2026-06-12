@@ -164,4 +164,5 @@ Never commit credentials. Use `.env.example` as the local template.
 
 ## License
 
-Not licensed for reuse.
+Copyright (c) 2026 Giselle Evita Koch. See [LICENSE](LICENSE) for the
+proprietary source-available terms.
