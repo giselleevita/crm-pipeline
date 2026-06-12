@@ -2,6 +2,6 @@ requests==2.34.2
 google-cloud-bigquery==3.25.0
 pandas==2.2.2
 python-dotenv==1.2.2
-dbt-bigquery==1.8.0
+dbt-bigquery==1.11.1
 pytest==9.0.3
 pytest-mock==3.14.0
