@@ -7,6 +7,7 @@
 > Python pipeline that extracts HubSpot contacts, deals, and companies, transforms them into warehouse-friendly records, and loads full-refresh raw tables into BigQuery.
 
 For implementation tradeoffs and next steps, see [docs/CASE_STUDY.md](docs/CASE_STUDY.md).
+For component boundaries and production evolution, see [docs/architecture.md](docs/architecture.md).
 
 This repository demonstrates a compact client-style data ingestion path: API extraction, transformation tests, BigQuery loading, a sample dbt reporting model, and a scheduled GitHub Actions workflow. It is not yet an incremental production data platform.
 
