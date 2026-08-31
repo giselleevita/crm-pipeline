@@ -1,0 +1,41 @@
+version: 2
+
+models:
+  - name: stg_contacts
+    description: One row per HubSpot contact, current state.
+    columns:
+      - name: contact_id
+        tests: [unique, not_null]
+      - name: modified_at
+        tests: [not_null]
+
+  - name: stg_companies
+    description: One row per HubSpot company, current state.
+    columns:
+      - name: company_id
+        tests: [unique, not_null]
+      - name: modified_at
+        tests: [not_null]
+
+  - name: stg_deals
+    description: One row per HubSpot deal, current state.
+    columns:
+      - name: deal_id
+        tests: [unique, not_null]
+      - name: stage
+        tests: [not_null]
+      - name: modified_at
+        tests: [not_null]
+
+  - name: stg_deal_associations
+    description: One row per deal-to-object link. A deal can appear many times.
+    columns:
+      - name: deal_id
+        tests: [not_null]
+      - name: associated_object_id
+        tests: [not_null]
+      - name: associated_object_type
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['companies', 'contacts']

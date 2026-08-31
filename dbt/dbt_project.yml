@@ -1,0 +1,24 @@
+name: crm
+version: "1.0.0"
+config-version: 2
+profile: crm
+
+model-paths: ["models"]
+snapshot-paths: ["snapshots"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+models:
+  crm:
+    staging:
+      # Views: staging does nothing but rename, cast and unnest, so there is
+      # no compute worth storing and no chance of the layer going stale.
+      +materialized: view
+    marts:
+      # Tables: marts are what a person or a dashboard queries, they join
+      # several sources, and they should not re-parse JSON on every query.
+      +materialized: table
+
+snapshots:
+  crm:
+    +target_schema: crm_snapshots

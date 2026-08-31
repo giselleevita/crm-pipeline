@@ -6,3 +6,10 @@ __pycache__/
 .venv/
 dist/
 *.egg-info/
+
+# dbt
+dbt/profiles.yml
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+logs/

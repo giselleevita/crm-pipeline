@@ -1,57 +1,53 @@
-# Case Study: CRM Pipeline
+# Case study: CRM pipeline
 
 ## Problem
 
-Sales and customer-success teams often need CRM reporting without manually exporting spreadsheets from HubSpot. A first useful step is to move core CRM records into a warehouse-friendly shape so reporting logic can be reviewed, tested, and extended.
+Commercial teams ask questions about the pipeline that HubSpot answers slowly
+and history answers not at all. What is in each stage, what changed this week,
+what did the pipeline look like a month ago. The last one HubSpot cannot answer
+at all, because it stores current state.
 
-## Solution
+## What was built
 
-This project implements a compact HubSpot-to-BigQuery ingestion path:
+An incremental extractor and a dimensional model.
 
-- extract contacts, deals, and companies from the HubSpot CRM API
-- transform source records into raw warehouse fields
-- load full-refresh BigQuery tables
-- provide a sample dbt model for deal-stage reporting
-- run transformation tests in CI
-- optionally run live syncs on a GitHub Actions schedule when secrets are configured
+The extractor pulls contacts, companies, deals and their associations from the
+HubSpot CRM API, filtered on modification time since the last successful run,
+and lands each response as raw JSON in BigQuery. dbt turns that into staging
+views, a type 2 snapshot of deals, and marts: `dim_contact`, `dim_company`,
+`fct_deal`, `bridge_deal_company`, and `fct_deal_stage_daily`.
 
-## Architecture
+## Engineering choices
 
-- Python extractor for HubSpot API pagination.
-- Transform layer for contacts, deals, and companies.
-- BigQuery raw dataset for source-aligned data.
-- Sample dbt SQL model for deal-stage aggregation.
-- GitHub Actions for tests, scheduled runs, and manual dispatch.
+**Incremental, not full refresh.** A watermark per object type in
+`pipeline_state`, written only after a successful load, with five minutes of
+overlap re-read each run to cover records modified while the previous run was in
+flight. The load is an upsert, so overlap costs nothing.
 
-## Engineering Choices
+**Raw layer as the contract.** The payload is stored exactly as returned. Adding
+a field is a SQL change rather than a code change plus a backfill.
 
-- The current loader uses full refreshes (`WRITE_TRUNCATE`) because that is simple to reason about for a small demo dataset.
-- Secrets are passed through environment variables or CI secrets, not source code.
-- Transform tests validate the shape of warehouse records before live loading.
-- The workflow skips live syncs when credentials are not configured, so pull requests can run safely without external systems.
+**Grain stated, not assumed.** `fct_deal` is one row per deal. Multiple companies
+on one deal is a real HubSpot behaviour, so the many-to-many lives in a bridge
+table and the fact carries a primary key chosen by an explicit, deterministic
+rule with the count alongside it.
 
-## Security And Reliability Controls
+**History where it pays.** Deals get type 2 history because stage movement is
+the question people ask. Contacts and companies are type 1, and the README says
+so rather than leaving it to be discovered.
 
-- No committed HubSpot or Google Cloud credentials.
-- HubSpot token is supplied at runtime.
-- BigQuery project and dataset are supplied at runtime.
-- Tests run without live vendor credentials.
-- Live pipeline execution is skipped in CI if required secrets are missing.
+## Testing
 
-## Current Limitations
+28 unit tests, none of which need a network or a warehouse: pagination across
+pages, re-anchoring past the result cap, retry and backoff behaviour, the
+envelope and watermark derivation, the generated MERGE SQL, and the orchestration
+rule that a failed load must leave the watermark where it was. dbt adds
+uniqueness, not-null, accepted-values and relationship tests, plus two singular
+tests for the daily grain and orphaned associations.
 
-This is not yet a production-grade CRM data platform. It does not currently implement incremental cursors, BigQuery `MERGE` upserts, activity sync, run metadata, Slack alerting, Terraform-managed IAM, or comprehensive extractor/loader mocks.
+## Limitations
 
-## Operational Value
-
-The pipeline provides a reviewable starting point for moving CRM records into an analytical warehouse. Its main value is the explicit separation between extraction, transformation, loading, offline validation, and credential-dependent live execution.
-
-## Next Improvements
-
-- Add config validation and fail-fast errors for missing environment variables.
-- Add mocked HubSpot pagination tests.
-- Add mocked BigQuery loader tests.
-- Replace full-refresh loads with staging tables and `MERGE`.
-- Store incremental cursors per object type.
-- Add dbt project configuration, dbt tests, and sample dashboard screenshots.
-- Add Slack or email alerting for failed scheduled runs.
+Deletes in HubSpot are not propagated. Schema drift shows up as failing tests
+rather than a named alert. Deal history begins the day the snapshot was first
+run. Failures are recorded rather than alerted on. These are listed in the
+README rather than left to be found.

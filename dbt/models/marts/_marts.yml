@@ -1,0 +1,70 @@
+version: 2
+
+models:
+  - name: dim_contact
+    description: "One row per contact, current state. Type 1: changes overwrite."
+    columns:
+      - name: contact_id
+        tests: [unique, not_null]
+
+  - name: dim_company
+    description: "One row per company, current state. Type 1: changes overwrite."
+    columns:
+      - name: company_id
+        tests: [unique, not_null]
+
+  - name: bridge_deal_company
+    description: One row per deal-company association.
+    columns:
+      - name: deal_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('fct_deal')
+                field: deal_id
+      - name: company_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_company')
+                field: company_id
+
+  - name: fct_deal
+    description: One row per deal, with the primary company and contact resolved.
+    columns:
+      - name: deal_id
+        tests: [unique, not_null]
+      - name: stage
+        tests: [not_null]
+      - name: primary_company_id
+        description: >
+          Lowest associated company id. Null when the deal has no company.
+          A deal with company_count greater than one is simplified here.
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_company')
+                field: company_id
+      - name: primary_contact_id
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_contact')
+                field: contact_id
+      - name: amount
+        description: Null when HubSpot held a value that would not cast to a number.
+
+  - name: fct_deal_stage_daily
+    description: >
+      One row per calendar day per stage, reconstructed from deal_snapshot.
+      History starts the day the snapshot was first run, not the day the deal
+      was created.
+    # Grain is asserted by tests/assert_deal_stage_daily_grain.sql rather than a
+    # dbt_utils macro, so the project stays free of package dependencies.
+    columns:
+      - name: snapshot_date
+        tests: [not_null]
+      - name: stage
+        tests: [not_null]

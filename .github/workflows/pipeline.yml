@@ -10,33 +10,58 @@ on:
   workflow_dispatch:
 
 jobs:
-  pipeline:
+  # Everything in this job runs without credentials, so a pull request from a
+  # fork gets the same feedback as a push to main.
+  checks:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
+          cache: pip
       - run: pip install -r requirements.txt
       - name: Audit dependencies
         run: |
           pip install pip-audit
           pip-audit -r requirements.txt --progress-spinner off
-      - run: pytest tests/ -v
-      - name: Run pipeline
+      - name: Unit tests
+        run: pytest tests/ -q
+      - name: Parse dbt project
+        # Parsing catches a broken ref, a missing source and a malformed test
+        # without touching BigQuery.
+        env:
+          GCP_PROJECT_ID: ci-parse-only
+          GCP_DATASET_ID: crm_raw
+          GCP_LOCATION: EU
+        run: |
+          cp dbt/profiles.yml.example dbt/profiles.yml
+          dbt parse --project-dir dbt --profiles-dir dbt --target dev
+
+  # The live run only happens where secrets exist: scheduled runs, manual
+  # dispatch, and pushes to main.
+  sync:
+    needs: checks
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Extract, build and test
         env:
           HUBSPOT_API_KEY: ${{ secrets.HUBSPOT_API_KEY }}
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
           GCP_DATASET_ID: ${{ vars.GCP_DATASET_ID || 'crm_raw' }}
+          GCP_LOCATION: ${{ vars.GCP_LOCATION || 'EU' }}
           GCP_CREDENTIALS_JSON: ${{ secrets.GCP_CREDENTIALS_JSON }}
+          DBT_TARGET: ci
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "Live CRM sync skipped on pull_request."
-            exit 0
-          fi
-
           if [ -z "$HUBSPOT_API_KEY" ] || [ -z "$GCP_PROJECT_ID" ] || [ -z "$GCP_CREDENTIALS_JSON" ]; then
-            echo "Live CRM sync skipped because one or more required secrets are not configured."
+            echo "::warning::Live sync skipped, one or more required secrets are not configured."
             exit 0
           fi
 
@@ -45,4 +70,12 @@ jobs:
           chmod 600 "$credentials_file"
           export GOOGLE_APPLICATION_CREDENTIALS="$credentials_file"
 
-          python src/pipeline.py
+          cp dbt/profiles.yml.example dbt/profiles.yml
+          ./scripts/run_pipeline.sh
+      - name: Upload dbt artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dbt-target
+          path: dbt/target
+          if-no-files-found: ignore
