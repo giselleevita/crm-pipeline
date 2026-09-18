@@ -35,3 +35,19 @@ def test_bigquery_load_rejects_unknown_table_before_sdk_import(monkeypatch):
 
     with pytest.raises(ValueError, match="Unsupported BigQuery table"):
         load("unknown", [])
+
+
+def test_bigquery_load_refuses_empty_full_refresh(monkeypatch):
+    monkeypatch.setenv("GCP_PROJECT_ID", "demo-project")
+    monkeypatch.delenv("ALLOW_EMPTY_FULL_REFRESH", raising=False)
+
+    with pytest.raises(RuntimeError, match="Refusing to truncate"):
+        load("contacts", [])
+
+
+def test_bigquery_load_rejects_invalid_dataset_before_sdk_import(monkeypatch):
+    monkeypatch.setenv("GCP_PROJECT_ID", "demo-project")
+    monkeypatch.setenv("GCP_DATASET_ID", "crm-raw;drop")
+
+    with pytest.raises(ValueError, match="Invalid BigQuery dataset"):
+        load("contacts", [{"id": "1"}])
