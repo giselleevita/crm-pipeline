@@ -1,5 +1,7 @@
 """Load structured records into BigQuery."""
 import os
+import re
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -36,6 +38,8 @@ SCHEMA_FIELDS = {
     ],
 }
 
+_DATASET_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,1023}$")
+
 
 def load(table_name: str, rows: list[dict]) -> None:
     project = os.getenv("GCP_PROJECT_ID")
@@ -44,6 +48,13 @@ def load(table_name: str, rows: list[dict]) -> None:
         raise RuntimeError("GCP_PROJECT_ID is required to load rows into BigQuery.")
     if table_name not in SCHEMA_FIELDS:
         raise ValueError(f"Unsupported BigQuery table: {table_name}")
+    if not _DATASET_PATTERN.fullmatch(dataset):
+        raise ValueError(f"Invalid BigQuery dataset identifier: {dataset!r}")
+    if not rows and os.getenv("ALLOW_EMPTY_FULL_REFRESH", "false").lower() != "true":
+        raise RuntimeError(
+            f"Refusing to truncate {table_name} with an empty extract. "
+            "Set ALLOW_EMPTY_FULL_REFRESH=true only for an intentional reset."
+        )
 
     from google.cloud import bigquery
 
@@ -54,5 +65,5 @@ def load(table_name: str, rows: list[dict]) -> None:
         write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,
     )
     job = client.load_table_from_json(rows, table_id, job_config=job_config)
-    job.result()
+    job.result(timeout=600)
     print(f"Loaded {len(rows)} rows into {table_id}")

@@ -43,7 +43,7 @@ flowchart TD
 | Area | Current implementation |
 |---|---|
 | Source objects | Contacts, deals, companies |
-| Extraction | HubSpot CRM v3 objects API with pagination |
+| Extraction | HubSpot CRM v3 objects API with bounded pagination, rate-limit-aware retries, and loop detection |
 | Transform | Python dict mapping into raw warehouse fields |
 | Load mode | Full refresh via BigQuery `WRITE_TRUNCATE` |
 | Tests | Unit tests for transformation output shape |
@@ -62,7 +62,6 @@ This repo does not currently include:
 - production dbt project structure
 - Slack alerting
 - Terraform for datasets/IAM
-- loader/extractor integration tests with mocks
 - run metadata tables or data quality checks
 
 Those are natural next steps, but they should not be implied as already implemented.
@@ -114,6 +113,7 @@ HUBSPOT_API_KEY=your_hubspot_private_app_token
 GCP_PROJECT_ID=your_gcp_project_id
 GCP_DATASET_ID=crm_raw
 GOOGLE_APPLICATION_CREDENTIALS=/path/to/gcp_credentials.json
+ALLOW_EMPTY_FULL_REFRESH=false
 ```
 
 Run tests:
@@ -155,11 +155,17 @@ Never commit credentials. Use `.env.example` as the local template.
 ## Next Improvements
 
 - Add explicit config validation and clearer missing-secret errors.
-- Add mocked HubSpot and BigQuery loader tests.
 - Replace `WRITE_TRUNCATE` with staging tables and `MERGE`.
 - Add incremental cursors per object type.
 - Add dbt project metadata and dbt tests.
 - Add Slack or email notifications for failed live runs.
+
+### Empty-extract safety
+
+Because this pipeline uses `WRITE_TRUNCATE`, an unexpected zero-row API response
+is treated as an error before BigQuery is called. Set
+`ALLOW_EMPTY_FULL_REFRESH=true` only when intentionally replacing a raw table
+with zero rows.
 
 ---
 

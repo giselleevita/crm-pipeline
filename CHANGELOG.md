@@ -6,6 +6,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## Unreleased
+
+- Added bounded, rate-limit-aware HubSpot retries and pagination loop detection.
+- Full-refresh loads now fail closed on empty extracts unless explicitly overridden.
+- All source objects are extracted before warehouse mutation, reducing partial-refresh risk.
+- Added API pagination, retry-policy, loader-safety, and orchestration regression tests.
+
 ## [1.0.0]
 
 ### Added
