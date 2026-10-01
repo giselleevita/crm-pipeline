@@ -1,6 +1,6 @@
 requests==2.34.2
 google-cloud-bigquery==3.45.0
-pandas==3.0.5
+pandas==3.0.6
 python-dotenv==1.2.2
 dbt-bigquery==1.12.1
 pytest==9.0.3
